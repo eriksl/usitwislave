@@ -373,29 +373,24 @@ void usi_twi_slave(uint8_t slave_address_in,
 
 			switch(ss_state)
 			{
-				case(ss_state_before_start):
+				case(ss_state_before_start):	//	gets removed while compilation
 				{
-					PORTB |= 0x08;
 					break;
 				}
 
 				case(ss_state_after_start):
 				{
-					PORTB |= 0x10;
 					twi_reset();
 					break;
 				}
 
-				case(ss_state_address_selected):
+				case(ss_state_address_selected)://	gets removed during compilation
 				{
-					PORTA |= 0x08;
 					break;
 				}
 
 				case(ss_state_data_processed):
 				{
-
-					PORTA |= 0x10;
 
 					output_buffer_length	= 0;
 					output_buffer_current	= 0;
