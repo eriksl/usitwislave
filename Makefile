@@ -5,7 +5,7 @@ MCU			=		attiny861
 LIBNAME		=		libusitwislave
 OBJFILES	=		$(LIBNAME).o
 LIBRARY		=		$(LIBNAME).a
-CFLAGS		=		-Wall -Winline -Os -mmcu=$(MCU) -DF_CPU=8000000UL -DUSI_ON_PORT_A
+CFLAGS		=		-Wall -Winline -Os -g -mmcu=$(MCU) -DF_CPU=8000000UL -DUSI_ON_PORT_A
 LDFLAGS		=		-Wall -mmcu=$(MCU)
 
 .PHONY:				all clean

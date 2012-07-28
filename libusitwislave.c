@@ -89,20 +89,25 @@ static always_inline void set_scl_high(void)
 	PORT_USI |= _BV(PORT_USI_SCL);
 }
 
-static always_inline void cr_enable_ovf_int(void)
+static always_inline void twi_reset_state(void)
 {
-	USICR |= _BV(USIOIE);
-}
+	USISR =
+		(1		<< USISIF)	|		// clear start condition flag
+		(1		<< USIOIF)	|		// clear overflow condition flag
+		(0		<< USIPF)	|		// don't clear stop condition flag
+		(1		<< USIDC)	|		// clear arbitration error flag
+		(0x00	<< USICNT0);		// set counter to "8" bits
 
-static always_inline void cr_enable_hold_clock_on_ovf(void)
-{
-	USICR |= _BV(USIWM0);
+	USICR =
+		(1 << USISIE) |									// enable start condition interrupt
+		(0 << USIOIE) |									// disable overflow interrupt
+		(1 << USIWM1) | (0 << USIWM0) |					// set usi in two-wire mode, no bit counter overflow hold
+		(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
+		(0 << USITC);									// don't toggle clock-port pin
 }
 
 static always_inline void twi_reset(void)
 {
-	USIDR = 0;
-
 	// make sure no sda/scl remains pulled up or down
 
 	set_sda_to_input();		//	deactivate internal pullup on sda/scl
@@ -116,19 +121,7 @@ static always_inline void twi_reset(void)
 	set_scl_to_output();
 	set_scl_high();
 
-	USICR =
-		(1 << USISIE) |									// enable start condition interrupt
-		(0 << USIOIE) |									// disable overflow interrupt
-		(1 << USIWM1) | (0 << USIWM0) |					// set usi in two-wire mode, no bit counter overflow hold
-		(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
-		(0 << USITC);									// don't toggle clock-port pin
-
-	USISR =
-		(1		<< USISIF)	|		// clear start condition flag
-		(1		<< USIOIF)	|		// clear overflow condition flag
-		(0		<< USIPF)	|		// don't clear stop condition flag
-		(1		<< USIDC)	|		// clear arbitration error flag
-		(0x00	<< USICNT0);		// set counter to "8" bits
+	twi_reset_state();
 }
 
 static always_inline void twi_init(void)
@@ -142,52 +135,6 @@ static always_inline void twi_init(void)
 #endif
 
 	twi_reset();
-}
-
-static always_inline void initiate_ack(void)
-{
-	USISR =
-		(0		<< USISIF)	|		// don't clear start condition flag
-		(1		<< USIOIF)	|		// clear overflow condition flag
-		(0		<< USIPF)	|		// don't clear stop condition flag
-		(1		<< USIDC)	|		// clear arbitration error flag
-		(0x0e	<< USICNT0);		// set counter to "1" bit
-
-	USIDR = 0x00;				//	prefill bit shift register for ACK (= 0)
-}
-
-static always_inline void initiate_send_ack(void)
-{
-	set_sda_to_output();
-	initiate_ack();
-}
-
-static always_inline void initiate_receive_ack(void)
-{
-	set_sda_to_input();
-	initiate_ack();
-}
-
-static always_inline void initiate_data(void)
-{
-	USISR = 
-		(0		<< USISIF)	|		//	don't clear start condition flag
-		(1		<< USIOIF)	|		//	clear overflow condition flag
-		(0		<< USIPF)	|		//	don't clear stop condition flag
-		(1		<< USIDC)	|		//	clear arbitration error flag
-		(0x00	<< USICNT0);		//	set counter to "8" bits
-}
-
-static always_inline void initiate_send_data(void)
-{
-	set_sda_to_output();
-	initiate_data();
-}
-
-static always_inline void initiate_receive_data(void)
-{
-	set_sda_to_input();
-	initiate_data();
 }
 
 ISR(USI_START_vect)
@@ -214,17 +161,21 @@ ISR(USI_START_vect)
 		of_state = of_state_check_address;
 		ss_state = ss_state_after_start;
 
-		USIDR = 0;
+		USIDR = 0xff;
 
 		USISR =
 			(1		<< USISIF)	|		// clear start condition flag
-			(0		<< USIOIF)	|		// don't clear overflow condition flag
+			(1		<< USIOIF)	|		// clear overflow condition flag
 			(0		<< USIPF)	|		// don't clear stop condition flag
 			(0		<< USIDC)	|		// don't clear arbitration error flag
 			(0x00	<< USICNT0);		// set counter to "8" bits
 
-		cr_enable_hold_clock_on_ovf();
-		cr_enable_ovf_int();
+		USICR =
+			(1 << USISIE) |									// enable start condition interrupt
+			(1 << USIOIE) |									// enable overflow interrupt
+			(1 << USIWM1) | (1 << USIWM0) |					// set usi in two-wire mode, enable bit counter overflow hold
+			(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
+			(0 << USITC);									// don't toggle clock-port pin
 	}
 	else // stop condition
 		twi_reset();
@@ -235,117 +186,135 @@ ISR(USI_OVERFLOW_VECTOR)
 	// bit shift register overflow condition occured
 	// scl forced low until overflow condition is cleared!
 	
-	uint8_t repeat;
+	uint8_t data		= USIDR;
+	uint8_t set_counter = 0x00;		// send 8 bits (16 edges)
 
-	do
+again:
+	switch(of_state)
 	{
-		repeat = 0;	// do not repeat eternally
+		// start condition occured and succeed
+		// check address, if not OK, reset usi
+		// note: not using general call address
 
-		switch(of_state)
+		case(of_state_check_address):
 		{
-			// start condition occured and succeed
-			// check address, if not OK, reset usi
-			// note: not using general call address
+			uint8_t address;
+			uint8_t direction;
 
-			case(of_state_check_address):
+			direction	= data & 0x01;
+			address		= (data & 0xfe) >> 1;
+
+			if(address == slave_address)
 			{
-				uint8_t data;
-				uint8_t address;
-				uint8_t direction;
+				ss_state = ss_state_address_selected;
 
-				data		= USIDR;
-				direction	= data & 0x01;
-				address		= (data & 0xfe) >> 1;
-
-				if(address == slave_address)
-				{
-					ss_state = ss_state_address_selected;
-
-					if(direction)					// read request from master
-						of_state = of_state_send_data;
-					else							// write request from master
-						of_state = of_state_receive_data;
-
-					initiate_send_ack();
-				}
-				else
-				{
-					ss_state = ss_state_address_not_selected;
-					twi_reset();
-				}
-
-				break;
-			}
-
-			// process read request from master
-
-			case(of_state_send_data):
-			{
-				ss_state = ss_state_data_processed;
-
-				if(output_buffer_current < output_buffer_length)
-					USIDR = output_buffer[output_buffer_current++];
-				else
-					USIDR = 0xff;
-
-				initiate_send_data();
-				of_state = of_state_request_ack;
-
-				break;
-			}
-
-			// data sent to master, request ack (or nack) from master
-
-			case(of_state_request_ack):
-			{
-				of_state = of_state_check_ack;
-				initiate_receive_ack();
-				break;
-			}
-
-			// ack/nack from master received
-			
-			case(of_state_check_ack):
-			{
-				if(USIDR)	// if NACK, the master does not want more data
-				{
-					of_state = of_state_check_address;
-					twi_reset();
-				}
-				else
-				{
+				if(direction)					// read request from master
 					of_state = of_state_send_data;
-					repeat = 1;	// from here we just drop straight into state_send_data
-				}				// don't wait for another overflow interrupt
+				else							// write request from master
+					of_state = of_state_receive_data;
 
-				break;
+				USIDR		= 0x00;
+				set_counter = 0x0e;				// send 1 bit (2 edges)
+				set_sda_to_output();			// initiate send ack
 			}
-
-			// process write request from master
-
-			case(of_state_receive_data):
+			else
 			{
-				ss_state = ss_state_data_processed;
-
-				of_state = of_state_store_data_and_send_ack;
-				initiate_receive_data();
-				break;
+				USIDR		= 0x00;
+				set_counter = 0x00;
+				twi_reset_state();
+				ss_state = ss_state_address_not_selected;
 			}
 
-			// data received from master, store it and wait for more data
+			break;
+		}
 
-			case(of_state_store_data_and_send_ack):
+		// process read request from master
+
+		case(of_state_send_data):
+		{
+			ss_state = ss_state_data_processed;
+			of_state = of_state_request_ack;
+
+			if(output_buffer_current < output_buffer_length)
+				USIDR = output_buffer[output_buffer_current++];
+			else
+				USIDR = 0xfe;
+
+			set_counter = 0x00;
+			set_sda_to_output();				// initiate send data
+
+			break;
+		}
+
+		// data sent to master, request ack (or nack) from master
+
+		case(of_state_request_ack):
+		{
+			of_state = of_state_check_ack;
+
+			USIDR		= 0x00;
+			set_counter = 0x0e;					//	receive 1 bit (2 edges)
+			set_sda_to_input();					//	initiate receive ack
+
+			break;
+		}
+
+		// ack/nack from master received
+		
+		case(of_state_check_ack):
+		{
+			if(data)	// if NACK, the master does not want more data
 			{
-				if(input_buffer_length < (buffer_size - 1))
-					input_buffer[input_buffer_length++] = USIDR;
-
-				of_state = of_state_receive_data;
-				initiate_send_ack();
-				break;
+				of_state = of_state_check_address;
+				set_counter = 0x00;
+				twi_reset();
 			}
+			else
+			{
+				of_state = of_state_send_data;
+				goto again;	// from here we just drop straight into state_send_data
+			}				// don't wait for another overflow interrupt
+
+			break;
+		}
+
+		// process write request from master
+
+		case(of_state_receive_data):
+		{
+			ss_state = ss_state_data_processed;
+
+			of_state = of_state_store_data_and_send_ack;
+
+			set_counter = 0x00;					// receive 1 bit (2 edges)
+			set_sda_to_input();					// initiate receive data
+
+			break;
+		}
+
+		// data received from master, store it and wait for more data
+
+		case(of_state_store_data_and_send_ack):
+		{
+			of_state = of_state_receive_data;
+
+			if(input_buffer_length < (buffer_size - 1))
+				input_buffer[input_buffer_length++] = data;
+
+			USIDR		= 0x00;
+			set_counter = 0x0e;					// send 1 bit (2 edges)
+			set_sda_to_output();				// initiate send ack
+
+			break;
 		}
 	}
-	while(repeat); // allow for some overflow states to go into another state immediately, without waiting for overflow condition
+
+	USISR =
+		(0				<< USISIF)	|		// clear start condition flag
+		(1				<< USIOIF)	|		// clear overflow condition flag
+		(0				<< USIPF)	|		// don't clear stop condition flag
+		(1				<< USIDC)	|		// clear arbitration error flag
+		(set_counter	<< USICNT0);		// set counter to 8 or 1 bits
 }
 
 void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
@@ -401,6 +370,7 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 
 					break;
 				}
+
 			}
 
 			ss_state = ss_state_before_start;
