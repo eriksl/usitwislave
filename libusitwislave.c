@@ -2,6 +2,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 
 #include "usitwislave_devices.h"
 #include "usitwislave.h"
@@ -23,6 +24,7 @@ enum
 	ss_state_before_start,
 	ss_state_after_start,
 	ss_state_address_selected,
+	ss_state_address_not_selected,
 	ss_state_data_processed
 } startstop_state_t;
 
@@ -268,7 +270,7 @@ ISR(USI_OVERFLOW_VECTOR)
 				}
 				else
 				{
-					ss_state = ss_state_before_start;
+					ss_state = ss_state_address_not_selected;
 					twi_reset();
 				}
 
@@ -346,7 +348,7 @@ ISR(USI_OVERFLOW_VECTOR)
 	while(repeat); // allow for some overflow states to go into another state immediately, without waiting for overflow condition
 }
 
-void usi_twi_slave(uint8_t slave_address_in,
+void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 			void (*data_callback_in)(uint8_t buffer_size,
 			volatile uint8_t input_buffer_length, volatile const uint8_t *input_buffer,
 			volatile uint8_t *output_buffer_length, volatile uint8_t *output_buffer),
@@ -361,12 +363,18 @@ void usi_twi_slave(uint8_t slave_address_in,
 	output_buffer_current	= 0;
 	ss_state				= ss_state_before_start;
 
+	if(use_sleep)
+		set_sleep_mode(SLEEP_MODE_IDLE);
+
 	twi_init();
 
 	sei();
 
 	for(;;)
 	{
+		if(use_sleep && (ss_state == ss_state_before_start))
+			sleep_mode();
+
 		if(USISR & _BV(USIPF))
 		{
 			cli();
@@ -375,19 +383,9 @@ void usi_twi_slave(uint8_t slave_address_in,
 
 			switch(ss_state)
 			{
-				case(ss_state_before_start):	//	gets removed while compilation
-				{
-					break;
-				}
-
 				case(ss_state_after_start):
 				{
 					twi_reset();
-					break;
-				}
-
-				case(ss_state_address_selected)://	gets removed during compilation
-				{
 					break;
 				}
 
