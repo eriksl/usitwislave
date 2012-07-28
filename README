@@ -1,0 +1,71 @@
+This is a simple i2c/twi slave implementation using
+the USI module found on several attiny models.
+
+It has been loosely based on work by Atmel (application
+note 312) and work by Donald Blake (several fixes to
+the Atmel code, these are included in this client).
+
+I have found a few other situations that would cause
+mayhem and have been fixed:
+
+ - Bus lockup after the master has written to a
+	non-existent slave address.
+ - Slave would receive bytes not addressed to it
+	when a master would address two or more slaves
+	after each other, without sending a stop
+	condition in between ("repeated start").
+
+Probably there are still other bugs / conditions left,
+which I haven't run in yet...
+
+Differences to existing code (by Atmel and Donald Blake):
+ - Actually works, slave can reply data (as opposed to the
+	Atmel version).
+ - Completely different coding style (higher level) than
+ 	Donald Blake's version, you may or may not like that ;-).
+ - Compiles standalone to a library file (.a) and a header
+	(.h) that can be included into several projects
+	independantly. Please make sure you're using a version
+	that was compiled for the device you're using (see Makefile).
+ - Added support for a few newer attiny devices
+ - Added support for USI bus on port A when using attiny*61
+	devices (this is a library compile time option
+	though because it MUST work with #defines). Add a
+	-DUSI_ON_PORT_A in the Makefile to the "CFLAGS" section
+	to enable.
+ - Last but not least: support for "complete" transactions,
+ 	i.e. start-data-stop and act then, instead of waiting
+	for the next start condition. Due to poor design of
+	USI, the stop condition can only be polled, so the mcu
+	needs to busy wait on the stop condition flag. Therefore
+	you cannot use any sleeping command at the moment, this may
+	change in the future.
+
+Usage is super simple: in your main loop, after all initialisations
+are done, call usi_twi_slave(slave_address, data_callback, idle_callback)
+where slave_address is you slave's requested address and callback is
+a pointer to a function that is called when a stop condition occurs
+after a valid transaction has been completed. Your callback should
+be defined like this:
+
+static void twi_callback(uint8_t buffer_size,
+						volatile uint8_t input_buffer_length, volatile const uint8_t *input_buffer,
+                        volatile uint8_t *output_buffer_length, volatile uint8_t *output_buffer)
+
+buffer_size = the size of the internal input and output buffers,
+	currently this is 16 bytes, but it may enlarged by recompiling
+	the library. Do not write more bytes than the buffer_size or
+	mayhem will break out!
+input_buffer_length = the amount of bytes received from the master
+input_buffer = the bytes received from the master
+output_buffer_length = the amount of bytes you want to send back to
+	the master
+output_buffer = the bytes you want to send back to the master
+
+The input buffer is cleared after every valid transaction so you'll
+never see the same bytes from the master twice. The output buffer
+is cleared after all bytes are sent as well.
+
+The idle_callback is an optional callback that will be called when
+there is nothing to do, it's defined as void idle_callback(void). If
+you're not using it, specify NULL.
