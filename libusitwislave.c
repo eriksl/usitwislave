@@ -363,6 +363,8 @@ void usi_twi_slave(uint8_t slave_address_in,
 
 	twi_init();
 
+	sei();
+
 	for(;;)
 	{
 		if(USISR & _BV(USIPF))
