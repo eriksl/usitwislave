@@ -49,6 +49,14 @@ static volatile uint8_t	output_buffer[buffer_size];
 static volatile uint8_t	output_buffer_length;
 static volatile uint8_t	output_buffer_current;
 
+static			uint8_t		stats_enabled;
+static volatile uint16_t	start_conditions_count;
+static volatile uint16_t	stop_conditions_count;
+static volatile uint16_t	error_conditions_count;
+static volatile uint16_t	overflow_conditions_count;
+static volatile uint16_t	local_frames_count;
+static volatile uint16_t	idle_call_count;
+
 static always_inline void set_sda_to_input(void)
 {
 	DDR_USI &= ~_BV(PORT_USI_SDA);
@@ -156,29 +164,36 @@ ISR(USI_START_vect)
 	//	sda = high	scl = low		break	stop condition
 	//	sda = high	scl = high		break	stop condition
 	
-	if(!(PIN_USI & _BV(PIN_USI_SDA)))	// start condition
+	if((PIN_USI & _BV(PIN_USI_SDA)))	// stop condition
 	{
-		of_state = of_state_check_address;
-		ss_state = ss_state_after_start;
-
-		USIDR = 0xff;
-
-		USISR =
-			(1		<< USISIF)	|		// clear start condition flag
-			(1		<< USIOIF)	|		// clear overflow condition flag
-			(0		<< USIPF)	|		// don't clear stop condition flag
-			(0		<< USIDC)	|		// don't clear arbitration error flag
-			(0x00	<< USICNT0);		// set counter to "8" bits
-
-		USICR =
-			(1 << USISIE) |									// enable start condition interrupt
-			(1 << USIOIE) |									// enable overflow interrupt
-			(1 << USIWM1) | (1 << USIWM0) |					// set usi in two-wire mode, enable bit counter overflow hold
-			(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
-			(0 << USITC);									// don't toggle clock-port pin
-	}
-	else // stop condition
 		twi_reset();
+
+		if(stats_enabled)
+			error_conditions_count++;
+		return;
+	}
+
+	USISR =
+		(1		<< USISIF)	|		// clear start condition flag
+		(1		<< USIOIF)	|		// clear overflow condition flag
+		(0		<< USIPF)	|		// don't clear stop condition flag
+		(0		<< USIDC)	|		// don't clear arbitration error flag
+		(0x00	<< USICNT0);		// set counter to "8" bits
+
+	USICR =
+		(1 << USISIE) |									// enable start condition interrupt
+		(1 << USIOIE) |									// enable overflow interrupt
+		(1 << USIWM1) | (1 << USIWM0) |					// set usi in two-wire mode, enable bit counter overflow hold
+		(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
+		(0 << USITC);									// don't toggle clock-port pin
+
+	if(stats_enabled)
+		start_conditions_count++;
+	
+	of_state = of_state_check_address;
+	ss_state = ss_state_after_start;
+
+	USIDR = 0xff;
 }
 
 ISR(USI_OVERFLOW_VECTOR)
@@ -188,6 +203,9 @@ ISR(USI_OVERFLOW_VECTOR)
 	
 	uint8_t data		= USIDR;
 	uint8_t set_counter = 0x00;		// send 8 bits (16 edges)
+
+	if(stats_enabled)
+		overflow_conditions_count++;
 
 again:
 	switch(of_state)
@@ -348,6 +366,9 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 		{
 			cli();
 
+			if(stats_enabled)
+				stop_conditions_count++;
+
 			USISR |= _BV(USIPF);	// clear stop condition flag
 
 			switch(ss_state)
@@ -360,6 +381,8 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 
 				case(ss_state_data_processed):
 				{
+					if(stats_enabled)
+						local_frames_count++;
 
 					output_buffer_length	= 0;
 					output_buffer_current	= 0;
@@ -379,6 +402,52 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 		}
 
 		if(idle_callback)
+		{
 			idle_callback();
+
+			if(stats_enabled)
+				idle_call_count++;
+		}
 	}
+}
+
+void usi_twi_enable_stats(uint8_t onoff)
+{
+	stats_enabled				= onoff;
+	start_conditions_count		= 0;
+	stop_conditions_count		= 0;
+	error_conditions_count		= 0;
+	overflow_conditions_count	= 0;
+	local_frames_count			= 0;
+	idle_call_count				= 0;
+}
+
+uint16_t usi_twi_stats_start_conditions(void)
+{
+	return(start_conditions_count);
+}
+
+uint16_t usi_twi_stats_stop_conditions(void)
+{
+	return(stop_conditions_count);
+}
+
+uint16_t usi_twi_stats_error_conditions(void)
+{
+	return(error_conditions_count);
+}
+
+uint16_t usi_twi_stats_overflow_conditions(void)
+{
+	return(overflow_conditions_count);
+}
+
+uint16_t usi_twi_stats_local_frames(void)
+{
+	return(local_frames_count);
+}
+
+uint16_t usi_twi_stats_idle_calls(void)
+{
+	return(idle_call_count);
 }
