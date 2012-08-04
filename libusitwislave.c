@@ -109,7 +109,7 @@ static always_inline void twi_reset_state(void)
 	USICR =
 		(1 << USISIE) |									// enable start condition interrupt
 		(0 << USIOIE) |									// disable overflow interrupt
-		(1 << USIWM1) | (0 << USIWM0) |					// set usi in two-wire mode, no bit counter overflow hold
+		(1 << USIWM1) | (1 << USIWM0) |					// set usi in two-wire mode, enable bit counter overflow hold
 		(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
 		(0 << USITC);									// don't toggle clock-port pin
 }
@@ -173,12 +173,13 @@ ISR(USI_START_vect)
 		return;
 	}
 
-	USISR =
-		(1		<< USISIF)	|		// clear start condition flag
-		(1		<< USIOIF)	|		// clear overflow condition flag
-		(0		<< USIPF)	|		// don't clear stop condition flag
-		(0		<< USIDC)	|		// don't clear arbitration error flag
-		(0x00	<< USICNT0);		// set counter to "8" bits
+	if(stats_enabled)
+		start_conditions_count++;
+	
+	of_state = of_state_check_address;
+	ss_state = ss_state_after_start;
+
+	USIDR = 0xff;
 
 	USICR =
 		(1 << USISIE) |									// enable start condition interrupt
@@ -187,13 +188,12 @@ ISR(USI_START_vect)
 		(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
 		(0 << USITC);									// don't toggle clock-port pin
 
-	if(stats_enabled)
-		start_conditions_count++;
-	
-	of_state = of_state_check_address;
-	ss_state = ss_state_after_start;
-
-	USIDR = 0xff;
+	USISR =
+		(1		<< USISIF)	|		// clear start condition flag
+		(1		<< USIOIF)	|		// clear overflow condition flag
+		(0		<< USIPF)	|		// don't clear stop condition flag
+		(1		<< USIDC)	|		// clear arbitration error flag
+		(0x00	<< USICNT0);		// set counter to "8" bits
 }
 
 ISR(USI_OVERFLOW_VECTOR)
@@ -328,7 +328,7 @@ again:
 	}
 
 	USISR =
-		(0				<< USISIF)	|		// clear start condition flag
+		(0				<< USISIF)	|		// don't clear start condition flag
 		(1				<< USIOIF)	|		// clear overflow condition flag
 		(0				<< USIPF)	|		// don't clear stop condition flag
 		(1				<< USIDC)	|		// clear arbitration error flag
