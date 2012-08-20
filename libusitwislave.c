@@ -30,7 +30,7 @@ enum
 
 enum
 {
-	buffer_size = 16
+	buffer_size = 32
 };
 
 static void (*idle_callback)(void);
