@@ -5,7 +5,9 @@ MCU			=		attiny861
 LIBNAME		=		libusitwislave
 OBJFILES	=		$(LIBNAME).o
 LIBRARY		=		$(LIBNAME).a
-CFLAGS		=		-Wall -Winline -Os -g -mmcu=$(MCU) -DF_CPU=8000000UL -DUSI_ON_PORT_A
+CFLAGS		=		-Wall -Winline -O3 -mmcu=$(MCU) -DF_CPU=8000000UL \
+					-fpack-struct -funroll-loops -funit-at-a-time -fno-keep-static-consts \
+					-frename-registers
 LDFLAGS		=		-Wall -mmcu=$(MCU)
 
 .PHONY:				all clean
