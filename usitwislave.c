@@ -120,7 +120,7 @@ static always_inline void twi_reset(void)
 
 	set_sda_to_input();		//	deactivate internal pullup on sda/scl
 	set_sda_low();
-	set_scl_to_input();	
+	set_scl_to_input();
 	set_scl_low();
 
 	set_sda_to_output();	//	release (set high) on sda/scl
@@ -146,7 +146,7 @@ ISR(USI_START_vect)
 	// the interrupt to prevent waiting forever - don't use USISR to test for stop
 	// condition as in Application Note AVR312 because the stop condition Flag is
 	// going to be set from the last TWI sequence
-	
+
 	while(!(PIN_USI & _BV(PIN_USI_SDA)) &&
 			(PIN_USI & _BV(PIN_USI_SCL)))
 
@@ -155,7 +155,7 @@ ISR(USI_START_vect)
 	// 	sda = low	scl = high		loop
 	//	sda = high	scl = low		break	stop condition
 	//	sda = high	scl = high		break	stop condition
-	
+
 	if((PIN_USI & _BV(PIN_USI_SDA)))	// stop condition
 	{
 		twi_reset();
@@ -167,7 +167,7 @@ ISR(USI_START_vect)
 
 	if(stats_enabled)
 		start_conditions_count++;
-	
+
 	of_state = of_state_check_address;
 	ss_state = ss_state_after_start;
 
@@ -192,7 +192,7 @@ ISR(USI_OVERFLOW_VECTOR)
 {
 	// bit shift register overflow condition occured
 	// scl forced low until overflow condition is cleared!
-	
+
 	uint8_t data		= USIDR;
 	uint8_t set_counter = 0x00;		// send 8 bits (16 edges)
 
@@ -270,7 +270,7 @@ again:
 		}
 
 		// ack/nack from master received
-		
+
 		case(of_state_check_ack):
 		{
 			if(data)	// if NACK, the master does not want more data
