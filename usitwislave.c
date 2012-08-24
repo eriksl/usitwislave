@@ -134,6 +134,14 @@ static always_inline void twi_reset(void)
 
 static always_inline void twi_init(void)
 {
+#if defined(USIPP)
+#if  defined(USI_ON_PORT_A)
+	USIPP |= _BV(USIPOS);
+#else
+	USIPP &= ~_BV(USIPOS);
+# endif
+#endif
+
 	twi_reset();
 }
 
