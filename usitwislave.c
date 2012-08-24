@@ -109,7 +109,7 @@ static always_inline void twi_reset_state(void)
 	USICR =
 		(1 << USISIE) |									// enable start condition interrupt
 		(0 << USIOIE) |									// disable overflow interrupt
-		(1 << USIWM1) | (1 << USIWM0) |					// set usi in two-wire mode, enable bit counter overflow hold
+		(1 << USIWM1) | (0 << USIWM0) |					// set usi in two-wire mode, disable bit counter overflow hold
 		(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
 		(0 << USITC);									// don't toggle clock-port pin
 }
