@@ -94,13 +94,13 @@ static inline void twi_reset_state(void)
 	USISR =
 		(1		<< USISIF)	|		// clear start condition flag
 		(1		<< USIOIF)	|		// clear overflow condition flag
-		(0		<< USIPF)	|		// don't clear stop condition flag
+		(0		<< USIPF)	|		// !clear stop condition flag
 		(1		<< USIDC)	|		// clear arbitration error flag
 		(0x00	<< USICNT0);		// set counter to "8" bits
 
 	USICR =
 		(1 << USISIE) |									// enable start condition interrupt
-		(0 << USIOIE) |									// disable overflow interrupt
+		(0 << USIOIE) |									// !enable overflow interrupt
 		(1 << USIWM1) | (0 << USIWM0) |					// set usi in two-wire mode, disable bit counter overflow hold
 		(1 << USICS1) | (0 << USICS0) | (0 << USICLK) |	// shift register clock source = external, positive edge, 4-bit counter source = external, both edges
 		(0 << USITC);									// don't toggle clock-port pin
@@ -183,7 +183,7 @@ ISR(USI_START_vect)
 	USISR =
 		(1		<< USISIF)	|		// clear start condition flag
 		(1		<< USIOIF)	|		// clear overflow condition flag
-		(0		<< USIPF)	|		// don't clear stop condition flag
+		(0		<< USIPF)	|		// !clear stop condition flag
 		(1		<< USIDC)	|		// clear arbitration error flag
 		(0x00	<< USICNT0);		// set counter to "8" bits
 }
