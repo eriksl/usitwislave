@@ -118,6 +118,7 @@ static void twi_reset(void)
 	set_sda_to_output();	//	release (set high) on sda/scl
 	set_sda_high();
 	set_sda_to_input();
+	set_sda_high();
 	set_scl_to_output();
 	set_scl_high();
 
