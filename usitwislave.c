@@ -248,7 +248,7 @@ again:
 			if(output_buffer_current < output_buffer_length)
 				USIDR = output_buffer[output_buffer_current++];
 			else
-				USIDR = 0xfe;
+				USIDR = 0x00;					// no more data, but cannot send "nothing" or "nak"
 
 			set_counter = 0x00;
 			set_sda_to_output();				// initiate send data
