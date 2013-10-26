@@ -27,27 +27,27 @@ enum
 } startstop_state_t;
 
 static void (*idle_callback)(void);
-static void	(*data_callback)(uint8_t volatile input_buffer_length, const volatile uint8_t *input_buffer,
-						uint8_t volatile *output_buffer_length, uint8_t volatile *output_buffer);
+static void	(*data_callback)(uint8_t input_buffer_length, const uint8_t *input_buffer,
+						uint8_t *output_buffer_length, uint8_t *output_buffer);
 
-static volatile	uint8_t of_state;
-static volatile uint8_t ss_state;
+static uint8_t of_state;
+static uint8_t ss_state;
 
-static volatile uint8_t	slave_address;
+static uint8_t	slave_address;
 
-static volatile uint8_t	input_buffer[USI_TWI_BUFFER_SIZE];
-static volatile uint8_t	input_buffer_length;
-static volatile uint8_t	output_buffer[USI_TWI_BUFFER_SIZE];
-static volatile uint8_t	output_buffer_length;
-static volatile uint8_t	output_buffer_current;
+static uint8_t	input_buffer[USI_TWI_BUFFER_SIZE];
+static uint8_t	input_buffer_length;
+static uint8_t	output_buffer[USI_TWI_BUFFER_SIZE];
+static uint8_t	output_buffer_length;
+static uint8_t	output_buffer_current;
 
-static			uint8_t		stats_enabled;
-static volatile uint16_t	start_conditions_count;
-static volatile uint16_t	stop_conditions_count;
-static volatile uint16_t	error_conditions_count;
-static volatile uint16_t	overflow_conditions_count;
-static volatile uint16_t	local_frames_count;
-static volatile uint16_t	idle_call_count;
+static uint8_t	stats_enabled;
+static uint16_t	start_conditions_count;
+static uint16_t	stop_conditions_count;
+static uint16_t	error_conditions_count;
+static uint16_t	overflow_conditions_count;
+static uint16_t	local_frames_count;
+static uint16_t	idle_call_count;
 
 static void set_sda_to_input(void)
 {
@@ -329,8 +329,8 @@ again:
 }
 
 void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
-			void (*data_callback_in)(volatile uint8_t input_buffer_length, volatile const uint8_t *input_buffer,
-			volatile uint8_t *output_buffer_length, volatile uint8_t *output_buffer),
+			void (*data_callback_in)(uint8_t input_buffer_length, const uint8_t *input_buffer,
+			uint8_t *output_buffer_length, uint8_t *output_buffer),
 			void (*idle_callback_in)(void))
 {
 	uint8_t	call_datacallback = 0;

@@ -11,8 +11,8 @@ enum
 };
 
 void		usi_twi_slave(uint8_t slave_address, uint8_t use_sleep,
-				void (*data_callback)(volatile uint8_t input_buffer_length, volatile const uint8_t *input_buffer,
-				volatile uint8_t *output_buffer_length, volatile uint8_t *output_buffer),
+				void (*data_callback)(uint8_t input_buffer_length, const uint8_t *input_buffer,
+				uint8_t *output_buffer_length, uint8_t *output_buffer),
 				void (*idle_callback)(void));
 
 void		usi_twi_enable_stats(uint8_t onoff);
