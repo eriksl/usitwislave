@@ -333,6 +333,8 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 			volatile uint8_t *output_buffer_length, volatile uint8_t *output_buffer),
 			void (*idle_callback_in)(void))
 {
+	uint8_t	call_datacallback = 0;
+
 	slave_address			= slave_address_in;
 	data_callback			= data_callback_in;
 	idle_callback			= idle_callback_in;
@@ -351,6 +353,14 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 
 	for(;;)
 	{
+		if(idle_callback)
+		{
+			idle_callback();
+
+			if(stats_enabled)
+				idle_call_count++;
+		}
+
 		if(use_sleep && (ss_state == ss_state_before_start))
 			sleep_mode();
 
@@ -376,16 +386,10 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 					if(stats_enabled)
 						local_frames_count++;
 
-					output_buffer_length	= 0;
-					output_buffer_current	= 0;
-
-					data_callback(input_buffer_length, input_buffer, &output_buffer_length, output_buffer);
-
-					input_buffer_length		= 0;
+					call_datacallback = 1;
 
 					break;
 				}
-
 			}
 
 			ss_state = ss_state_before_start;
@@ -393,12 +397,13 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 			sei();
 		}
 
-		if(idle_callback)
+		if(call_datacallback)
 		{
-			idle_callback();
-
-			if(stats_enabled)
-				idle_call_count++;
+			output_buffer_length	= 0;
+			output_buffer_current	= 0;
+			data_callback(input_buffer_length, input_buffer, &output_buffer_length, output_buffer);
+			input_buffer_length		= 0;
+			call_datacallback		= 0;
 		}
 	}
 }
