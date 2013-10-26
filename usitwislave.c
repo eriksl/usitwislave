@@ -26,14 +26,8 @@ enum
 	ss_state_data_processed
 } startstop_state_t;
 
-enum
-{
-	buffer_size = 32
-};
-
 static void (*idle_callback)(void);
-static void	(*data_callback)(uint8_t buffer_size,
-						uint8_t volatile input_buffer_length, const volatile uint8_t *input_buffer,
+static void	(*data_callback)(uint8_t volatile input_buffer_length, const volatile uint8_t *input_buffer,
 						uint8_t volatile *output_buffer_length, uint8_t volatile *output_buffer);
 
 static volatile	uint8_t of_state;
@@ -41,9 +35,9 @@ static volatile uint8_t ss_state;
 
 static volatile uint8_t	slave_address;
 
-static volatile uint8_t	input_buffer[buffer_size];
+static volatile uint8_t	input_buffer[USI_TWI_BUFFER_SIZE];
 static volatile uint8_t	input_buffer_length;
-static volatile uint8_t	output_buffer[buffer_size];
+static volatile uint8_t	output_buffer[USI_TWI_BUFFER_SIZE];
 static volatile uint8_t	output_buffer_length;
 static volatile uint8_t	output_buffer_current;
 
@@ -314,7 +308,7 @@ again:
 		{
 			of_state = of_state_receive_data;
 
-			if(input_buffer_length < (buffer_size - 1))
+			if(input_buffer_length < (USI_TWI_BUFFER_SIZE - 1))
 				input_buffer[input_buffer_length++] = data;
 
 			USIDR		= 0x00;
@@ -334,8 +328,7 @@ again:
 }
 
 void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
-			void (*data_callback_in)(uint8_t buffer_size,
-			volatile uint8_t input_buffer_length, volatile const uint8_t *input_buffer,
+			void (*data_callback_in)(volatile uint8_t input_buffer_length, volatile const uint8_t *input_buffer,
 			volatile uint8_t *output_buffer_length, volatile uint8_t *output_buffer),
 			void (*idle_callback_in)(void))
 {
@@ -385,7 +378,7 @@ void usi_twi_slave(uint8_t slave_address_in, uint8_t use_sleep,
 					output_buffer_length	= 0;
 					output_buffer_current	= 0;
 
-					data_callback(buffer_size, input_buffer_length, input_buffer, &output_buffer_length, output_buffer);
+					data_callback(input_buffer_length, input_buffer, &output_buffer_length, output_buffer);
 
 					input_buffer_length		= 0;
 
