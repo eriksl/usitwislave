@@ -7,8 +7,6 @@
 #include "usitwislave_devices.h"
 #include "usitwislave.h"
 
-#define always_inline __attribute__((always_inline))
-
 enum
 {
 	of_state_check_address,
@@ -57,47 +55,47 @@ static volatile uint16_t	overflow_conditions_count;
 static volatile uint16_t	local_frames_count;
 static volatile uint16_t	idle_call_count;
 
-static always_inline void set_sda_to_input(void)
+static void set_sda_to_input(void)
 {
 	DDR_USI &= ~_BV(PORT_USI_SDA);
 }
 
-static always_inline void set_sda_to_output(void)
+static void set_sda_to_output(void)
 {
 	DDR_USI |= _BV(PORT_USI_SDA);
 }
 
-static always_inline void set_scl_to_input(void)
+static inline void set_scl_to_input(void)
 {
 	DDR_USI &= ~_BV(PORT_USI_SCL);
 }
 
-static always_inline void set_scl_to_output(void)
+static inline void set_scl_to_output(void)
 {
 	DDR_USI |= _BV(PORT_USI_SCL);
 }
 
-static always_inline void set_sda_low(void)
+static inline void set_sda_low(void)
 {
 	PORT_USI &= ~_BV(PORT_USI_SDA);
 }
 
-static always_inline void set_sda_high(void)
+static inline void set_sda_high(void)
 {
 	PORT_USI |= _BV(PORT_USI_SDA);
 }
 
-static always_inline void set_scl_low(void)
+static inline void set_scl_low(void)
 {
 	PORT_USI &= ~_BV(PORT_USI_SCL);
 }
 
-static always_inline void set_scl_high(void)
+static inline void set_scl_high(void)
 {
 	PORT_USI |= _BV(PORT_USI_SCL);
 }
 
-static always_inline void twi_reset_state(void)
+static inline void twi_reset_state(void)
 {
 	USISR =
 		(1		<< USISIF)	|		// clear start condition flag
@@ -114,7 +112,7 @@ static always_inline void twi_reset_state(void)
 		(0 << USITC);									// don't toggle clock-port pin
 }
 
-static always_inline void twi_reset(void)
+static void twi_reset(void)
 {
 	// make sure no sda/scl remains pulled up or down
 
@@ -132,7 +130,7 @@ static always_inline void twi_reset(void)
 	twi_reset_state();
 }
 
-static always_inline void twi_init(void)
+static inline void twi_init(void)
 {
 #if defined(USIPP)
 #if  defined(USI_ON_PORT_A)
