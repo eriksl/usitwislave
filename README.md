@@ -28,14 +28,16 @@ The input buffer is cleared after every valid transaction so you'll never see th
 
 ## Example use
 ```c
-#include  "usitwislave.h"
+#include <stdint.h>
+#include "usitwislave.h"
 
 #define DEVICE_ADDRESS	0x10
 
 uint8_t regs[4] = { 4, 8, 16, 32 };
 uint8_t currentReg = 0;
 
-static void request(volatile uint8_t input_buffer_length, const uint8_t *input_buffer, uint8_t *output_buffer_length, uint8_t *output_buffer) {
+static void request(volatile uint8_t input_buffer_length, const uint8_t *input_buffer,
+        uint8_t *output_buffer_length, uint8_t *output_buffer) {
   // the number of bytes to be returned to the master
   *output_buffer_length = 1;
   
@@ -44,7 +46,7 @@ static void request(volatile uint8_t input_buffer_length, const uint8_t *input_b
   
   // send the next reg next time
   currentReg++;
-  if (currentReg > sizeOf(regs)) {
+  if (currentReg > sizeof(regs)) {
     currentReg = 0;
   }
   
@@ -52,7 +54,9 @@ static void request(volatile uint8_t input_buffer_length, const uint8_t *input_b
   output_buffer[0] = regs[currentReg];
   output_buffer[1] = regs[currentReg + 1];
 
-  // If you want to send a single value larger than one byte, you will need to split it into bytes, send and then reassemble at the master. Maximum size in the library default is 32 bytes. You can increase this in usitwislave.h
+  // If you want to send a single value larger than one byte, you will need to split it into bytes,
+  // send and then reassemble at the master. Maximum size in the library default is 32 bytes
+  // You can increase this in usitwislave.h
   uint16_t val = 256;
   *output_buffer_length = 2;
   output_buffer[0] = (val >> 8) & 0xFF;
