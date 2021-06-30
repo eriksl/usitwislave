@@ -74,10 +74,11 @@ int main() {
 ```
 
 ## Use with PlatformIO
-To use this library with PlatformIO, create your project then clone this library into `/lib/`. If you're writing C++, you will also need to rename `usitwislave.c` to `usitwislave.cpp`. Finally, include `#import "usitwisliave.h"` in your project.
+To use this library with PlatformIO, create your project then clone this library into `/lib/`. If you're writing C++, remember that you will also need to rename `usitwislave.c` to `usitwislave.cpp`. Finally, include `#import "usitwisliave.h"` in your project.
 ```bash
 cd lib/
 git clone https://github.com/eriksl/usitwislave.git
+# if you're using C++
 cd usitwislave
 mv usitwislave.c usitwislave.cpp
 ```
